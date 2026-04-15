@@ -11,9 +11,7 @@ class Turno extends Model
 
     protected $table = 'turno';
     protected $fillable = ['nombre', 'hora_entrada', 'hora_tardanza', 'hora_salida', 'estado'];
-
-    const CREATED_AT = 'creado_el';
-    const UPDATED_AT = 'actualizado_el';
+    public $timestamps = false;
 
     public function asignaciones()
     {

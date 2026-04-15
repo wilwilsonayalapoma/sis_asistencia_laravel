@@ -12,19 +12,20 @@ class ConfiguracionController extends Controller
 {
     public function index()
     {
+        return redirect()->route('configuraciones.general');
+    }
+
+    public function general()
+    {
         $data = [
             'nombre_institucion' => Configuracion::valor('nombre_institucion', 'Sistema de Asistencia'),
             'hora_tardanza' => Configuracion::valor('hora_tardanza', '08:30:00'),
         ];
 
-        $tiposPersonal = TipoPersonal::orderBy('id', 'asc')->get();
-        $oficinas = Oficina::orderBy('id', 'asc')->get();
-        $turnos = Turno::orderBy('id', 'asc')->get();
-
-        return view('configuraciones.index', compact('data', 'tiposPersonal', 'oficinas', 'turnos'));
+        return view('configuraciones.general', compact('data'));
     }
 
-    public function update(Request $request)
+    public function updateGeneral(Request $request)
     {
         $validated = $request->validate([
             'nombre_institucion' => ['required', 'string', 'max:120'],
@@ -35,6 +36,13 @@ class ConfiguracionController extends Controller
         Configuracion::guardar('hora_tardanza', $validated['hora_tardanza']);
 
         return back()->with('ok', 'Configuraciones guardadas correctamente.');
+    }
+
+    public function tiposPersonal()
+    {
+        $tiposPersonal = TipoPersonal::orderBy('id', 'asc')->get();
+
+        return view('configuraciones.tipos-personal', compact('tiposPersonal'));
     }
 
     public function storeTipoPersonal(Request $request)
@@ -57,6 +65,13 @@ class ConfiguracionController extends Controller
         $tipoPersonal->save();
 
         return back()->with('ok', 'Estado de tipo de personal actualizado.');
+    }
+
+    public function oficinas()
+    {
+        $oficinas = Oficina::orderBy('id', 'asc')->get();
+
+        return view('configuraciones.oficinas', compact('oficinas'));
     }
 
     public function storeOficina(Request $request)
@@ -83,20 +98,27 @@ class ConfiguracionController extends Controller
         return back()->with('ok', 'Estado de oficina actualizado.');
     }
 
+    public function turnos()
+    {
+        $turnos = Turno::orderBy('id', 'asc')->get();
+
+        return view('configuraciones.turnos', compact('turnos'));
+    }
+
     public function storeTurno(Request $request)
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:60', 'unique:turno,nombre'],
-            'hora_entrada' => ['required', 'date_format:H:i:s'],
-            'hora_tardanza' => ['required', 'date_format:H:i:s'],
-            'hora_salida' => ['nullable', 'date_format:H:i:s'],
+            'hora_entrada' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/'],
+            'hora_tardanza' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/'],
+            'hora_salida' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/'],
         ]);
 
         Turno::create([
             'nombre' => trim($validated['nombre']),
-            'hora_entrada' => $validated['hora_entrada'],
-            'hora_tardanza' => $validated['hora_tardanza'],
-            'hora_salida' => $validated['hora_salida'] ?? null,
+            'hora_entrada' => $this->normalizarHora($validated['hora_entrada']),
+            'hora_tardanza' => $this->normalizarHora($validated['hora_tardanza']),
+            'hora_salida' => $this->normalizarHora($validated['hora_salida'] ?? null),
             'estado' => 1,
         ]);
 
@@ -119,18 +141,27 @@ class ConfiguracionController extends Controller
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:60', 'unique:turno,nombre,' . $turno->id],
-            'hora_entrada' => ['required', 'date_format:H:i:s'],
-            'hora_tardanza' => ['required', 'date_format:H:i:s'],
-            'hora_salida' => ['nullable', 'date_format:H:i:s'],
+            'hora_entrada' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/'],
+            'hora_tardanza' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/'],
+            'hora_salida' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/'],
         ]);
 
         $turno->update([
             'nombre' => trim($validated['nombre']),
-            'hora_entrada' => $validated['hora_entrada'],
-            'hora_tardanza' => $validated['hora_tardanza'],
-            'hora_salida' => $validated['hora_salida'] ?? null,
+            'hora_entrada' => $this->normalizarHora($validated['hora_entrada']),
+            'hora_tardanza' => $this->normalizarHora($validated['hora_tardanza']),
+            'hora_salida' => $this->normalizarHora($validated['hora_salida'] ?? null),
         ]);
 
         return back()->with('ok', 'Turno actualizado correctamente.');
+    }
+
+    private function normalizarHora(?string $hora): ?string
+    {
+        if ($hora === null || $hora === '') {
+            return null;
+        }
+
+        return strlen($hora) === 5 ? $hora . ':00' : $hora;
     }
 }

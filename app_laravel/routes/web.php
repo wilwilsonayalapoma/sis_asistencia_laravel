@@ -34,13 +34,23 @@ Route::patch('/empleados/{empleado}/estado', [EmpleadoController::class, 'cambia
 
 Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
 
-Route::get('/configuraciones', [ConfiguracionController::class, 'index'])->name('configuraciones.index');
-Route::put('/configuraciones', [ConfiguracionController::class, 'update'])->name('configuraciones.update');
-Route::post('/configuraciones/tipos-personal', [ConfiguracionController::class, 'storeTipoPersonal'])->name('configuraciones.tipos-personal.store');
-Route::patch('/configuraciones/tipos-personal/{tipoPersonal}/estado', [ConfiguracionController::class, 'cambiarEstadoTipoPersonal'])->name('configuraciones.tipos-personal.estado');
-Route::post('/configuraciones/oficinas', [ConfiguracionController::class, 'storeOficina'])->name('configuraciones.oficinas.store');
-Route::patch('/configuraciones/oficinas/{oficina}/estado', [ConfiguracionController::class, 'cambiarEstadoOficina'])->name('configuraciones.oficinas.estado');
-Route::post('/configuraciones/turnos', [ConfiguracionController::class, 'storeTurno'])->name('configuraciones.turnos.store');
-Route::patch('/configuraciones/turnos/{turno}/estado', [ConfiguracionController::class, 'cambiarEstadoTurno'])->name('configuraciones.turnos.estado');
-Route::get('/configuraciones/turnos/{turno}/editar', [ConfiguracionController::class, 'editTurno'])->name('configuraciones.turnos.edit');
-Route::put('/configuraciones/turnos/{turno}', [ConfiguracionController::class, 'updateTurno'])->name('configuraciones.turnos.update');
+Route::prefix('/configuraciones')->name('configuraciones.')->group(function () {
+	Route::get('/', [ConfiguracionController::class, 'index'])->name('index');
+
+	Route::get('/general', [ConfiguracionController::class, 'general'])->name('general');
+	Route::put('/general', [ConfiguracionController::class, 'updateGeneral'])->name('general.update');
+
+	Route::get('/tipos-personal', [ConfiguracionController::class, 'tiposPersonal'])->name('tipos-personal.index');
+	Route::post('/tipos-personal', [ConfiguracionController::class, 'storeTipoPersonal'])->name('tipos-personal.store');
+	Route::patch('/tipos-personal/{tipoPersonal}/estado', [ConfiguracionController::class, 'cambiarEstadoTipoPersonal'])->name('tipos-personal.estado');
+
+	Route::get('/oficinas', [ConfiguracionController::class, 'oficinas'])->name('oficinas.index');
+	Route::post('/oficinas', [ConfiguracionController::class, 'storeOficina'])->name('oficinas.store');
+	Route::patch('/oficinas/{oficina}/estado', [ConfiguracionController::class, 'cambiarEstadoOficina'])->name('oficinas.estado');
+
+	Route::get('/turnos', [ConfiguracionController::class, 'turnos'])->name('turnos.index');
+	Route::post('/turnos', [ConfiguracionController::class, 'storeTurno'])->name('turnos.store');
+	Route::patch('/turnos/{turno}/estado', [ConfiguracionController::class, 'cambiarEstadoTurno'])->name('turnos.estado');
+	Route::get('/turnos/{turno}/editar', [ConfiguracionController::class, 'editTurno'])->name('turnos.edit');
+	Route::put('/turnos/{turno}', [ConfiguracionController::class, 'updateTurno'])->name('turnos.update');
+});

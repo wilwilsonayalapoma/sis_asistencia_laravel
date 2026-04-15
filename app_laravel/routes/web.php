@@ -36,3 +36,7 @@ Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.ind
 
 Route::get('/configuraciones', [ConfiguracionController::class, 'index'])->name('configuraciones.index');
 Route::put('/configuraciones', [ConfiguracionController::class, 'update'])->name('configuraciones.update');
+Route::post('/configuraciones/tipos-personal', [ConfiguracionController::class, 'storeTipoPersonal'])->name('configuraciones.tipos-personal.store');
+Route::patch('/configuraciones/tipos-personal/{tipoPersonal}/estado', [ConfiguracionController::class, 'cambiarEstadoTipoPersonal'])->name('configuraciones.tipos-personal.estado');
+Route::post('/configuraciones/oficinas', [ConfiguracionController::class, 'storeOficina'])->name('configuraciones.oficinas.store');
+Route::patch('/configuraciones/oficinas/{oficina}/estado', [ConfiguracionController::class, 'cambiarEstadoOficina'])->name('configuraciones.oficinas.estado');

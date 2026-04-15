@@ -192,11 +192,14 @@
                         </span>
                     </td>
                     <td>
-                        <form method="post" action="{{ route('configuraciones.turnos.estado', $turno) }}">
-                            @csrf
-                            @method('PATCH')
-                            <button class="btn btn-sm btn-outline-dark" type="submit">Cambiar estado</button>
-                        </form>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editTurnoModal" onclick="editarTurno({{ $turno->id }})">Editar</button>
+                            <form method="post" action="{{ route('configuraciones.turnos.estado', $turno) }}" style="display: inline;">
+                                @csrf
+                                @method('PATCH')
+                                <button class="btn btn-sm btn-outline-dark" type="submit">{{ $turno->estado ? 'Desactivar' : 'Activar' }}</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
             @empty
@@ -205,4 +208,61 @@
             </tbody>
         </table>
     </div>
+</div>
+
+<!-- Modal para editar turno -->
+<div class="modal fade" id="editTurnoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Turno</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="formEditarTurno" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del turno</label>
+                        <input class="form-control" type="text" name="nombre" id="turnoNombre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hora de entrada</label>
+                        <input class="form-control" type="time" name="hora_entrada" id="turnoHoraEntrada" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hora de tardanza</label>
+                        <input class="form-control" type="time" name="hora_tardanza" id="turnoHoraTardanza" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hora de salida (opcional)</label>
+                        <input class="form-control" type="time" name="hora_salida" id="turnoHoraSalida">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function editarTurno(turnoId) {
+        fetch(`/configuraciones/turnos/${turnoId}/editar`)
+            .then(response => response.json())
+            .then(turno => {
+                document.getElementById('turnoNombre').value = turno.nombre;
+                document.getElementById('turnoHoraEntrada').value = turno.hora_entrada;
+                document.getElementById('turnoHoraTardanza').value = turno.hora_tardanza;
+                document.getElementById('turnoHoraSalida').value = turno.hora_salida || '';
+                document.getElementById('formEditarTurno').action = `/configuraciones/turnos/${turnoId}`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar los datos del turno');
+            });
+    }
+</script>
 @endsection

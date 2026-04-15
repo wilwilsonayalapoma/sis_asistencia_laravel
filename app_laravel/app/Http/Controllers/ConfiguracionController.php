@@ -110,4 +110,27 @@ class ConfiguracionController extends Controller
 
         return back()->with('ok', 'Estado de turno actualizado.');
     }
+    public function editTurno(Turno $turno)
+    {
+        return response()->json($turno);
+    }
+
+    public function updateTurno(Request $request, Turno $turno)
+    {
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:60', 'unique:turno,nombre,' . $turno->id],
+            'hora_entrada' => ['required', 'date_format:H:i:s'],
+            'hora_tardanza' => ['required', 'date_format:H:i:s'],
+            'hora_salida' => ['nullable', 'date_format:H:i:s'],
+        ]);
+
+        $turno->update([
+            'nombre' => trim($validated['nombre']),
+            'hora_entrada' => $validated['hora_entrada'],
+            'hora_tardanza' => $validated['hora_tardanza'],
+            'hora_salida' => $validated['hora_salida'] ?? null,
+        ]);
+
+        return back()->with('ok', 'Turno actualizado correctamente.');
+    }
 }

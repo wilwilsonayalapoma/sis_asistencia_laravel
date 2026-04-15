@@ -42,3 +42,5 @@ Route::post('/configuraciones/oficinas', [ConfiguracionController::class, 'store
 Route::patch('/configuraciones/oficinas/{oficina}/estado', [ConfiguracionController::class, 'cambiarEstadoOficina'])->name('configuraciones.oficinas.estado');
 Route::post('/configuraciones/turnos', [ConfiguracionController::class, 'storeTurno'])->name('configuraciones.turnos.store');
 Route::patch('/configuraciones/turnos/{turno}/estado', [ConfiguracionController::class, 'cambiarEstadoTurno'])->name('configuraciones.turnos.estado');
+Route::get('/configuraciones/turnos/{turno}/editar', [ConfiguracionController::class, 'editTurno'])->name('configuraciones.turnos.edit');
+Route::put('/configuraciones/turnos/{turno}', [ConfiguracionController::class, 'updateTurno'])->name('configuraciones.turnos.update');

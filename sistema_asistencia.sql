@@ -81,7 +81,35 @@ CREATE TABLE IF NOT EXISTS oficina (
 
 
 -- =============================================================
--- 4. ASIGNACION_OFICINA
+-- 4. TURNO
+--    Definición de turnos: mañana, tarde, noche, etc.
+--    Cada turno tiene hora de entrada, tardanza y salida.
+-- =============================================================
+CREATE TABLE IF NOT EXISTS turno (
+    id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    nombre          VARCHAR(60)     NOT NULL,
+    hora_entrada    TIME            NOT NULL
+                        COMMENT 'Hora oficial de entrada',
+    hora_tardanza   TIME            NOT NULL
+                        COMMENT 'Hora límite para evitar tardanza',
+    hora_salida     TIME                NULL DEFAULT NULL
+                        COMMENT 'Hora esperada de salida (informativo)',
+    estado          TINYINT(1)      NOT NULL DEFAULT 1
+                        COMMENT '1=activo, 0=inactivo',
+    creado_el       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_el  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_turno_nombre (nombre),
+    INDEX idx_turno_estado (estado)
+) ENGINE=InnoDB
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci
+  COMMENT='Definición de turnos de trabajo';
+
+
+-- =============================================================
+-- 5. ASIGNACION_OFICINA
 --    Historial de asignaciones de personal a oficinas.
 --    fecha_fin NULL  → asignación vigente.
 --    Un mismo personal puede tener múltiples asignaciones
@@ -92,6 +120,7 @@ CREATE TABLE IF NOT EXISTS asignacion_oficina (
     personal_id         INT UNSIGNED    NOT NULL,
     oficina_id          INT UNSIGNED    NOT NULL,
     tipo_personal_id    INT UNSIGNED    NOT NULL,
+    turno_id            INT UNSIGNED    NOT NULL,
     fecha_inicio        DATE            NOT NULL,
     fecha_fin           DATE                NULL DEFAULT NULL
                             COMMENT 'NULL = asignación actualmente vigente',
@@ -118,11 +147,15 @@ CREATE TABLE IF NOT EXISTS asignacion_oficina (
     CONSTRAINT fk_ao_tipo_personal
         FOREIGN KEY (tipo_personal_id)  REFERENCES tipo_personal (id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_ao_turno
+        FOREIGN KEY (turno_id)          REFERENCES turno (id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
     UNIQUE KEY uq_ao_id_personal    (id, personal_id),
     UNIQUE KEY uq_ao_vigente_por_personal (personal_id, vigente_unica),
     INDEX idx_ao_personal       (personal_id),
     INDEX idx_ao_oficina        (oficina_id),
     INDEX idx_ao_tipo_personal  (tipo_personal_id),
+    INDEX idx_ao_turno          (turno_id),
     INDEX idx_ao_vigencia_lookup (personal_id, estado, fecha_inicio, fecha_fin),
     INDEX idx_ao_vigente        (personal_id, fecha_fin)
         COMMENT 'Búsqueda rápida de asignación vigente por personal'
@@ -193,6 +226,12 @@ INSERT INTO oficina (nombre, descripcion) VALUES
     ('Gerencia General',    'Dirección ejecutiva de la institución'),
     ('Operaciones',         'Logística y procesos operativos');
 
+INSERT INTO turno (nombre, hora_entrada, hora_tardanza, hora_salida) VALUES
+    ('Mañana',          '08:00:00', '08:30:00', '16:30:00'),
+    ('Tarde',           '14:00:00', '14:30:00', '22:30:00'),
+    ('Noche',           '22:00:00', '22:30:00', '06:30:00'),
+    ('Flexible',        '07:00:00', '09:00:00', NULL);
+
 
 -- =============================================================
 --  CONSULTAS PRINCIPALES DEL SISTEMA
@@ -203,13 +242,16 @@ INSERT INTO oficina (nombre, descripcion) VALUES
 --     Busca la asignación vigente y registra la entrada.
 --     Si ya existe el registro del día, solo actualiza entrada.
 -- -------------------------------------------------------------
--- PASO 1: Obtener personal_id y asignacion_oficina_id activos
+-- PASO 1: Obtener personal_id y asignacion_oficina_id activos con su turno
 /*
 SELECT
     p.id            AS personal_id,
     ao.id           AS asignacion_oficina_id,
     p.nombre,
     p.paterno,
+    t.nombre        AS turno,
+    t.hora_entrada,
+    t.hora_tardanza,
     o.nombre        AS oficina,
     tp.tipo
 FROM personal p
@@ -217,6 +259,7 @@ JOIN asignacion_oficina ao
     ON ao.personal_id = p.id
    AND ao.fecha_fin   IS NULL
    AND ao.estado      = 1
+JOIN turno t         ON t.id  = ao.turno_id
 JOIN oficina o       ON o.id  = ao.oficina_id
 JOIN tipo_personal tp ON tp.id = ao.tipo_personal_id
 WHERE p.ci     = '1234567'    -- <-- CI escaneado
@@ -247,15 +290,24 @@ WHERE personal_id = :personal_id
 
 -- -------------------------------------------------------------
 -- Q3. MARCAR TARDANZA
---     Se ejecuta si la entrada supera la hora límite permitida.
---     Ajustar '08:30:00' según política institucional.
+--     Se ejecuta si la entrada supera la hora límite del turno.
+--     Obtiene hora_tardanza desde el turno asignado al empleado.
 -- -------------------------------------------------------------
 /*
-UPDATE asistencia
-SET estado = 'tardanza'
-WHERE personal_id = :personal_id
-  AND fecha       = CURDATE()
-  AND TIME(entrada) > '08:30:00';
+SELECT
+    a.id,
+    p.ci,
+    p.nombre,
+    t.nombre AS turno,
+    t.hora_tardanza,
+    TIME(a.entrada) AS hora_entrada,
+    TIME(a.entrada) > t.hora_tardanza AS es_tardanza
+FROM asistencia a
+JOIN personal p ON p.id = a.personal_id
+JOIN asignacion_oficina ao ON ao.id = a.asignacion_oficina_id
+JOIN turno t ON t.id = ao.turno_id
+WHERE a.fecha = CURDATE()
+  AND TIME(a.entrada) > t.hora_tardanza;
 */
 
 -- -------------------------------------------------------------

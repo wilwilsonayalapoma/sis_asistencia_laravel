@@ -14,6 +14,7 @@ class AsignacionOficina extends Model
         'personal_id',
         'oficina_id',
         'tipo_personal_id',
+        'turno_id',
         'fecha_inicio',
         'fecha_fin',
         'estado',
@@ -40,5 +41,10 @@ class AsignacionOficina extends Model
     public function tipoPersonal()
     {
         return $this->belongsTo(TipoPersonal::class, 'tipo_personal_id');
+    }
+
+    public function turno()
+    {
+        return $this->belongsTo(Turno::class, 'turno_id');
     }
 }

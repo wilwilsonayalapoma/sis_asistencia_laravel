@@ -89,7 +89,8 @@ class MarcadoController extends Controller
                 $asistencia->entrada = now();
             }
 
-            $horaLimite = Configuracion::valor('hora_tardanza', '08:30:00');
+            // Obtener hora de tardanza del turno asignado
+            $horaLimite = $asignacion->turno->hora_tardanza;
             $horaEntrada = Carbon::parse($asistencia->entrada)->format('H:i:s');
             $asistencia->estado = $horaEntrada > $horaLimite ? 'tardanza' : 'presente';
             $asistencia->save();

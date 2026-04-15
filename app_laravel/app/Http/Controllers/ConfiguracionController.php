@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Configuracion;
 use App\Models\Oficina;
 use App\Models\TipoPersonal;
+use App\Models\Turno;
 use Illuminate\Http\Request;
 
 class ConfiguracionController extends Controller
@@ -18,8 +19,9 @@ class ConfiguracionController extends Controller
 
         $tiposPersonal = TipoPersonal::orderBy('id', 'asc')->get();
         $oficinas = Oficina::orderBy('id', 'asc')->get();
+        $turnos = Turno::orderBy('id', 'asc')->get();
 
-        return view('configuraciones.index', compact('data', 'tiposPersonal', 'oficinas'));
+        return view('configuraciones.index', compact('data', 'tiposPersonal', 'oficinas', 'turnos'));
     }
 
     public function update(Request $request)
@@ -79,5 +81,33 @@ class ConfiguracionController extends Controller
         $oficina->save();
 
         return back()->with('ok', 'Estado de oficina actualizado.');
+    }
+
+    public function storeTurno(Request $request)
+    {
+        $validated = $request->validate([
+            'nombre' => ['required', 'string', 'max:60', 'unique:turno,nombre'],
+            'hora_entrada' => ['required', 'date_format:H:i:s'],
+            'hora_tardanza' => ['required', 'date_format:H:i:s'],
+            'hora_salida' => ['nullable', 'date_format:H:i:s'],
+        ]);
+
+        Turno::create([
+            'nombre' => trim($validated['nombre']),
+            'hora_entrada' => $validated['hora_entrada'],
+            'hora_tardanza' => $validated['hora_tardanza'],
+            'hora_salida' => $validated['hora_salida'] ?? null,
+            'estado' => 1,
+        ]);
+
+        return back()->with('ok', 'Turno creado correctamente.');
+    }
+
+    public function cambiarEstadoTurno(Turno $turno)
+    {
+        $turno->estado = $turno->estado ? 0 : 1;
+        $turno->save();
+
+        return back()->with('ok', 'Estado de turno actualizado.');
     }
 }

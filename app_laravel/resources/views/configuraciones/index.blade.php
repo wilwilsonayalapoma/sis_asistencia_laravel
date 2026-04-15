@@ -136,4 +136,73 @@
         </table>
     </div>
 </div>
+
+<div class="card p-3 mt-4 mb-4">
+    <h2 class="h5 mb-3">Crear Turno</h2>
+    <form method="post" action="{{ route('configuraciones.turnos.store') }}" class="row g-2 align-items-end">
+        @csrf
+        <div class="col-md-3">
+            <label class="form-label">Nombre del turno</label>
+            <input class="form-control" type="text" name="nombre" value="{{ old('nombre') }}" placeholder="Ejemplo: Mañana" required>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Hora de entrada</label>
+            <input class="form-control" type="time" name="hora_entrada" value="{{ old('hora_entrada') }}" required>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Hora de tardanza</label>
+            <input class="form-control" type="time" name="hora_tardanza" value="{{ old('hora_tardanza') }}" required>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Hora de salida (opcional)</label>
+            <input class="form-control" type="time" name="hora_salida" value="{{ old('hora_salida') }}">
+        </div>
+        <div class="col-md-1 d-grid">
+            <button class="btn btn-primary" type="submit">Agregar</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white"><strong>Turnos</strong></div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Entrada</th>
+                    <th>Tardanza</th>
+                    <th>Salida</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($turnos as $turno)
+                <tr>
+                    <td>{{ $turno->id }}</td>
+                    <td>{{ $turno->nombre }}</td>
+                    <td>{{ $turno->hora_entrada }}</td>
+                    <td>{{ $turno->hora_tardanza }}</td>
+                    <td>{{ $turno->hora_salida ?: '-' }}</td>
+                    <td>
+                        <span class="badge {{ $turno->estado ? 'text-bg-success' : 'text-bg-secondary' }}">
+                            {{ $turno->estado ? 'Activo' : 'Inactivo' }}
+                        </span>
+                    </td>
+                    <td>
+                        <form method="post" action="{{ route('configuraciones.turnos.estado', $turno) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button class="btn btn-sm btn-outline-dark" type="submit">Cambiar estado</button>
+                        </form>
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="7" class="text-center text-muted py-3">No hay turnos registrados.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
 @endsection

@@ -40,3 +40,5 @@ Route::post('/configuraciones/tipos-personal', [ConfiguracionController::class, 
 Route::patch('/configuraciones/tipos-personal/{tipoPersonal}/estado', [ConfiguracionController::class, 'cambiarEstadoTipoPersonal'])->name('configuraciones.tipos-personal.estado');
 Route::post('/configuraciones/oficinas', [ConfiguracionController::class, 'storeOficina'])->name('configuraciones.oficinas.store');
 Route::patch('/configuraciones/oficinas/{oficina}/estado', [ConfiguracionController::class, 'cambiarEstadoOficina'])->name('configuraciones.oficinas.estado');
+Route::post('/configuraciones/turnos', [ConfiguracionController::class, 'storeTurno'])->name('configuraciones.turnos.store');
+Route::patch('/configuraciones/turnos/{turno}/estado', [ConfiguracionController::class, 'cambiarEstadoTurno'])->name('configuraciones.turnos.estado');

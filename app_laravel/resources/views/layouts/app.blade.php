@@ -26,6 +26,13 @@
                 <li class="nav-item"><a class="nav-link" href="{{ route('reportes.index') }}">Reportes</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ route('configuraciones.index') }}">Configuraciones</a></li>
             </ul>
+            <div class="d-flex align-items-center gap-2 text-white">
+                <span class="small">{{ auth()->user()->name ?? 'Administrador' }}</span>
+                <form method="post" action="{{ route('admin.logout') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-light">Salir</button>
+                </form>
+            </div>
         </div>
     </div>
 </nav>

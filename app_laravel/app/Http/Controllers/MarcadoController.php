@@ -11,6 +11,43 @@ use Illuminate\Http\Request;
 
 class MarcadoController extends Controller
 {
+    public function publico()
+    {
+        return view('public.asistencia');
+    }
+
+    public function registrarPublico(Request $request)
+    {
+        $validated = $request->validate([
+            'ci' => ['required', 'string', 'max:20'],
+        ]);
+
+        $personal = Personal::where('ci', $validated['ci'])
+            ->where('estado', 1)
+            ->first();
+
+        if (!$personal) {
+            return response()->json([
+                'ok' => false,
+                'mensaje' => 'No se encontro un empleado activo con ese CI.',
+            ], 422);
+        }
+
+        $hoy = Carbon::today()->toDateString();
+        $asignacion = $this->obtenerAsignacionVigente($personal->id, $hoy);
+
+        if (!$asignacion) {
+            return response()->json([
+                'ok' => false,
+                'mensaje' => 'El empleado no tiene asignacion vigente.',
+            ], 422);
+        }
+
+        $resultado = $this->registrarEntrada($personal, $asignacion, $hoy);
+
+        return response()->json($resultado, $resultado['ok'] ? 200 : 422);
+    }
+
     public function index(Request $request)
     {
         $hoy = Carbon::today()->toDateString();
@@ -53,49 +90,20 @@ class MarcadoController extends Controller
 
         $hoy = Carbon::today()->toDateString();
 
-        $asignacion = AsignacionOficina::where('personal_id', $personal->id)
-            ->where('estado', 1)
-            ->whereDate('fecha_inicio', '<=', $hoy)
-            ->where(function ($query) use ($hoy) {
-                $query->whereNull('fecha_fin')
-                    ->orWhereDate('fecha_fin', '>=', $hoy);
-            })
-            ->orderByDesc('fecha_inicio')
-            ->first();
+        $asignacion = $this->obtenerAsignacionVigente($personal->id, $hoy);
 
         if (!$asignacion) {
             return back()->with('error', 'El empleado no tiene asignacion vigente. Debe registrar una asignacion en la tabla asignacion_oficina.');
         }
 
         if ($validated['accion'] === 'entrada') {
-            $asistencia = Asistencia::firstOrCreate(
-                [
-                    'personal_id' => $personal->id,
-                    'fecha' => $hoy,
-                ],
-                [
-                    'asignacion_oficina_id' => $asignacion->id,
-                    'entrada' => now(),
-                    'estado' => 'presente',
-                ]
-            );
+            $resultado = $this->registrarEntrada($personal, $asignacion, $hoy);
 
-            if (!$asistencia->wasRecentlyCreated && $asistencia->entrada !== null) {
-                return back()->with('info', 'La entrada ya fue registrada para hoy.');
+            if (!$resultado['ok']) {
+                return back()->with('info', $resultado['mensaje']);
             }
 
-            if ($asistencia->entrada === null) {
-                $asistencia->asignacion_oficina_id = $asignacion->id;
-                $asistencia->entrada = now();
-            }
-
-            // Obtener hora de tardanza del turno asignado
-            $horaLimite = $asignacion->turno->hora_tardanza;
-            $horaEntrada = Carbon::parse($asistencia->entrada)->format('H:i:s');
-            $asistencia->estado = $horaEntrada > $horaLimite ? 'tardanza' : 'presente';
-            $asistencia->save();
-
-            return back()->with('ok', 'Entrada registrada correctamente.');
+            return back()->with('ok', $resultado['mensaje']);
         }
 
         $asistencia = Asistencia::where('personal_id', $personal->id)
@@ -114,5 +122,60 @@ class MarcadoController extends Controller
         $asistencia->save();
 
         return back()->with('ok', 'Salida registrada correctamente.');
+    }
+
+    private function obtenerAsignacionVigente(int $personalId, string $hoy): ?AsignacionOficina
+    {
+        return AsignacionOficina::where('personal_id', $personalId)
+            ->where('estado', 1)
+            ->whereDate('fecha_inicio', '<=', $hoy)
+            ->where(function ($query) use ($hoy) {
+                $query->whereNull('fecha_fin')
+                    ->orWhereDate('fecha_fin', '>=', $hoy);
+            })
+            ->orderByDesc('fecha_inicio')
+            ->first();
+    }
+
+    private function registrarEntrada(Personal $personal, AsignacionOficina $asignacion, string $hoy): array
+    {
+        $asistencia = Asistencia::firstOrCreate(
+            [
+                'personal_id' => $personal->id,
+                'fecha' => $hoy,
+            ],
+            [
+                'asignacion_oficina_id' => $asignacion->id,
+                'entrada' => now(),
+                'estado' => 'presente',
+            ]
+        );
+
+        if (!$asistencia->wasRecentlyCreated && $asistencia->entrada !== null) {
+            return [
+                'ok' => false,
+                'mensaje' => 'La entrada ya fue registrada para hoy.',
+                'nombre_completo' => $personal->nombre_completo,
+            ];
+        }
+
+        if ($asistencia->entrada === null) {
+            $asistencia->asignacion_oficina_id = $asignacion->id;
+            $asistencia->entrada = now();
+        }
+
+        $horaLimite = $asignacion->turno->hora_tardanza;
+        $horaEntrada = Carbon::parse($asistencia->entrada)->format('H:i:s');
+        $asistencia->estado = $horaEntrada > $horaLimite ? 'tardanza' : 'presente';
+        $asistencia->save();
+
+        return [
+            'ok' => true,
+            'mensaje' => 'Entrada registrada correctamente.',
+            'nombre_completo' => $personal->nombre_completo,
+            'hora_marcado' => $horaEntrada,
+            'estado' => $asistencia->estado,
+            'es_tardanza' => $asistencia->estado === 'tardanza',
+        ];
     }
 }

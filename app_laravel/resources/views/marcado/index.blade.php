@@ -26,7 +26,35 @@
 </div>
 
 <div class="card">
-    <div class="card-header bg-white"><strong>Registros de hoy</strong></div>
+    <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>Registros de hoy</strong>
+            <form method="get" action="{{ route('marcado.index') }}" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="apellido" value="{{ $apellidoBusqueda ?? '' }}">
+                <label class="form-label mb-0" for="orden">Orden</label>
+                <select id="orden" name="orden" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="desc" {{ ($ordenListado ?? 'desc') === 'desc' ? 'selected' : '' }}>Mas reciente primero</option>
+                    <option value="asc" {{ ($ordenListado ?? 'desc') === 'asc' ? 'selected' : '' }}>Mas antiguo primero</option>
+                </select>
+            </form>
+        </div>
+
+        <form method="get" action="{{ route('marcado.index') }}" class="row g-2 align-items-center">
+            <input type="hidden" name="orden" value="{{ $ordenListado ?? 'desc' }}">
+            <div class="col-md-10">
+                <input
+                    type="text"
+                    name="apellido"
+                    class="form-control form-control-sm"
+                    placeholder="Buscar trabajador por apellido (paterno o materno)"
+                    value="{{ $apellidoBusqueda ?? '' }}"
+                >
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-outline-primary btn-sm" type="submit">Buscar</button>
+            </div>
+        </form>
+    </div>
     <div class="table-responsive">
         <table class="table table-striped mb-0">
             <thead>

@@ -14,6 +14,13 @@ class EmpleadoController extends Controller
     public function index(Request $request)
     {
         $busqueda = $request->get('q');
+        $ordenListado = $request->get('orden', 'az');
+
+        if (!in_array($ordenListado, ['az', 'za'], true)) {
+            $ordenListado = 'az';
+        }
+
+        $direccion = $ordenListado === 'za' ? 'desc' : 'asc';
 
         $empleados = Personal::query()
             ->when($busqueda, function ($query) use ($busqueda) {
@@ -22,12 +29,13 @@ class EmpleadoController extends Controller
                     ->orWhere('paterno', 'like', "%{$busqueda}%")
                     ->orWhere('materno', 'like', "%{$busqueda}%");
             })
-            ->orderBy('paterno')
-            ->orderBy('nombre')
+            ->orderBy('paterno', $direccion)
+            ->orderBy('materno', $direccion)
+            ->orderBy('nombre', $direccion)
             ->paginate(12)
             ->withQueryString();
 
-        return view('empleados.index', compact('empleados', 'busqueda'));
+        return view('empleados.index', compact('empleados', 'busqueda', 'ordenListado'));
     }
 
     public function create()

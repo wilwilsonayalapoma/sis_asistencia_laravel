@@ -10,8 +10,14 @@
 
 <div class="card p-3 mb-3">
     <form class="row g-2" method="get" action="{{ route('empleados.index') }}">
-        <div class="col-md-10">
+        <div class="col-md-7">
             <input class="form-control" type="text" name="q" value="{{ $busqueda }}" placeholder="Buscar por CI, nombre o apellido">
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" name="orden">
+                <option value="az" {{ ($ordenListado ?? 'az') === 'az' ? 'selected' : '' }}>Orden A-Z</option>
+                <option value="za" {{ ($ordenListado ?? 'az') === 'za' ? 'selected' : '' }}>Orden Z-A</option>
+            </select>
         </div>
         <div class="col-md-2 d-grid">
             <button class="btn btn-outline-primary" type="submit">Buscar</button>

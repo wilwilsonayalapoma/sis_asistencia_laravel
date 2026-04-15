@@ -11,16 +11,29 @@ use Illuminate\Http\Request;
 
 class MarcadoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $hoy = Carbon::today()->toDateString();
+        $ordenListado = $request->get('orden', 'desc');
+        $apellidoBusqueda = trim((string) $request->get('apellido', ''));
+
+        if (!in_array($ordenListado, ['asc', 'desc'], true)) {
+            $ordenListado = 'desc';
+        }
 
         $registros = Asistencia::with(['personal', 'asignacion.oficina'])
             ->whereDate('fecha', $hoy)
-            ->orderByDesc('actualizado_el')
+            ->when($apellidoBusqueda !== '', function ($query) use ($apellidoBusqueda) {
+                $query->whereHas('personal', function ($q) use ($apellidoBusqueda) {
+                    $q->where('paterno', 'like', "%{$apellidoBusqueda}%")
+                        ->orWhere('materno', 'like', "%{$apellidoBusqueda}%");
+                });
+            })
+            ->orderBy('actualizado_el', $ordenListado)
+            ->orderBy('id', $ordenListado)
             ->get();
 
-        return view('marcado.index', compact('registros'));
+        return view('marcado.index', compact('registros', 'ordenListado', 'apellidoBusqueda'));
     }
 
     public function procesar(Request $request)

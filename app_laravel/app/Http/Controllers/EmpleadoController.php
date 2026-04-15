@@ -6,6 +6,7 @@ use App\Models\AsignacionOficina;
 use App\Models\Oficina;
 use App\Models\Personal;
 use App\Models\TipoPersonal;
+use App\Models\Turno;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -42,8 +43,9 @@ class EmpleadoController extends Controller
     {
         $oficinas = Oficina::where('estado', 1)->orderBy('nombre')->get();
         $tiposPersonal = TipoPersonal::where('estado', 1)->orderBy('tipo')->get();
+        $turnos = Turno::where('estado', 1)->orderBy('nombre')->get();
 
-        return view('empleados.create', compact('oficinas', 'tiposPersonal'));
+        return view('empleados.create', compact('oficinas', 'tiposPersonal', 'turnos'));
     }
 
     public function store(Request $request)
@@ -58,6 +60,7 @@ class EmpleadoController extends Controller
             'estado' => ['required', 'boolean'],
             'oficina_id' => ['required', 'integer', 'exists:oficina,id'],
             'tipo_personal_id' => ['required', 'integer', 'exists:tipo_personal,id'],
+            'turno_id' => ['required', 'integer', 'exists:turno,id'],
             'fecha_inicio' => ['required', 'date'],
         ]);
 
@@ -76,6 +79,7 @@ class EmpleadoController extends Controller
                 'personal_id' => $empleado->id,
                 'oficina_id' => $data['oficina_id'],
                 'tipo_personal_id' => $data['tipo_personal_id'],
+                'turno_id' => $data['turno_id'],
                 'fecha_inicio' => $data['fecha_inicio'],
                 'fecha_fin' => null,
                 'estado' => 1,
@@ -87,7 +91,17 @@ class EmpleadoController extends Controller
 
     public function edit(Personal $empleado)
     {
-        return view('empleados.edit', compact('empleado'));
+        $oficinas = Oficina::where('estado', 1)->orderBy('nombre')->get();
+        $tiposPersonal = TipoPersonal::where('estado', 1)->orderBy('tipo')->get();
+        $turnos = Turno::where('estado', 1)->orderBy('nombre')->get();
+
+        $asignacionVigente = AsignacionOficina::where('personal_id', $empleado->id)
+            ->where('estado', 1)
+            ->whereNull('fecha_fin')
+            ->orderByDesc('fecha_inicio')
+            ->first();
+
+        return view('empleados.edit', compact('empleado', 'oficinas', 'tiposPersonal', 'turnos', 'asignacionVigente'));
     }
 
     public function update(Request $request, Personal $empleado)
@@ -100,9 +114,48 @@ class EmpleadoController extends Controller
             'correo' => ['nullable', 'email', 'max:120'],
             'celular' => ['nullable', 'string', 'max:20'],
             'estado' => ['required', 'boolean'],
+            'oficina_id' => ['required', 'integer', 'exists:oficina,id'],
+            'tipo_personal_id' => ['required', 'integer', 'exists:tipo_personal,id'],
+            'turno_id' => ['required', 'integer', 'exists:turno,id'],
+            'fecha_inicio' => ['required', 'date'],
         ]);
 
-        $empleado->update($data);
+        DB::transaction(function () use ($empleado, $data) {
+            $empleado->update([
+                'nombre' => $data['nombre'],
+                'paterno' => $data['paterno'],
+                'materno' => $data['materno'] ?? null,
+                'ci' => $data['ci'],
+                'correo' => $data['correo'] ?? null,
+                'celular' => $data['celular'] ?? null,
+                'estado' => $data['estado'],
+            ]);
+
+            $asignacionVigente = AsignacionOficina::where('personal_id', $empleado->id)
+                ->where('estado', 1)
+                ->whereNull('fecha_fin')
+                ->orderByDesc('fecha_inicio')
+                ->first();
+
+            if ($asignacionVigente) {
+                $asignacionVigente->update([
+                    'oficina_id' => $data['oficina_id'],
+                    'tipo_personal_id' => $data['tipo_personal_id'],
+                    'turno_id' => $data['turno_id'],
+                    'fecha_inicio' => $data['fecha_inicio'],
+                ]);
+            } else {
+                AsignacionOficina::create([
+                    'personal_id' => $empleado->id,
+                    'oficina_id' => $data['oficina_id'],
+                    'tipo_personal_id' => $data['tipo_personal_id'],
+                    'turno_id' => $data['turno_id'],
+                    'fecha_inicio' => $data['fecha_inicio'],
+                    'fecha_fin' => null,
+                    'estado' => 1,
+                ]);
+            }
+        });
 
         return redirect()->route('empleados.index')->with('ok', 'Empleado actualizado correctamente.');
     }

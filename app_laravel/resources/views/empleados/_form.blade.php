@@ -35,8 +35,8 @@
     @if(!empty($mostrarAsignacion))
         <div class="col-12 mt-2">
             <hr>
-            <h5 class="mb-2">Asignacion inicial</h5>
-            <p class="text-muted mb-0">Esta asignacion se crea como vigente para habilitar el marcado.</p>
+            <h5 class="mb-2">Asignacion vigente</h5>
+            <p class="text-muted mb-0">Define oficina, tipo y turno para habilitar el marcado del empleado.</p>
         </div>
 
         <div class="col-md-4">
@@ -44,7 +44,7 @@
             <select class="form-select" name="oficina_id" required>
                 <option value="">Seleccione una oficina</option>
                 @foreach($oficinas as $oficina)
-                    <option value="{{ $oficina->id }}" {{ old('oficina_id') == $oficina->id ? 'selected' : '' }}>
+                    <option value="{{ $oficina->id }}" {{ old('oficina_id', $asignacionVigente->oficina_id ?? '') == $oficina->id ? 'selected' : '' }}>
                         {{ $oficina->nombre }}
                     </option>
                 @endforeach
@@ -56,7 +56,7 @@
             <select class="form-select" name="tipo_personal_id" required>
                 <option value="">Seleccione un tipo</option>
                 @foreach($tiposPersonal as $tipo)
-                    <option value="{{ $tipo->id }}" {{ old('tipo_personal_id') == $tipo->id ? 'selected' : '' }}>
+                    <option value="{{ $tipo->id }}" {{ old('tipo_personal_id', $asignacionVigente->tipo_personal_id ?? '') == $tipo->id ? 'selected' : '' }}>
                         {{ $tipo->tipo }}
                     </option>
                 @endforeach
@@ -64,8 +64,20 @@
         </div>
 
         <div class="col-md-4">
+            <label class="form-label">Turno</label>
+            <select class="form-select" name="turno_id" required>
+                <option value="">Seleccione un turno</option>
+                @foreach($turnos as $turno)
+                    <option value="{{ $turno->id }}" {{ old('turno_id', $asignacionVigente->turno_id ?? '') == $turno->id ? 'selected' : '' }}>
+                        {{ $turno->nombre }} ({{ substr($turno->hora_entrada, 0, 5) }} - {{ $turno->hora_salida ? substr($turno->hora_salida, 0, 5) : 'Sin salida' }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="col-md-4">
             <label class="form-label">Fecha de inicio</label>
-            <input type="date" class="form-control" name="fecha_inicio" value="{{ old('fecha_inicio', now()->toDateString()) }}" required>
+            <input type="date" class="form-control" name="fecha_inicio" value="{{ old('fecha_inicio', optional($asignacionVigente->fecha_inicio ?? null)->toDateString() ?? now()->toDateString()) }}" required>
         </div>
     @endif
 </div>

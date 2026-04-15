@@ -7,7 +7,7 @@
 <div class="card p-3">
     <form method="post" action="{{ route('empleados.update', $empleado) }}">
         @method('PUT')
-        @include('empleados._form')
+        @include('empleados._form', ['mostrarAsignacion' => true])
     </form>
 </div>
 @endsection

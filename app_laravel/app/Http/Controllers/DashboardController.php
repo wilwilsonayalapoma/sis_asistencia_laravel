@@ -30,7 +30,13 @@ class DashboardController extends Controller
                     ->whereDate('a.fecha', '=', $hoy);
             })
             ->where('p.estado', 1)
-            ->whereNull('a.id')
+            ->where(function ($q) {
+                $q->whereNull('a.id')
+                    ->orWhere(function ($qq) {
+                        $qq->whereNull('a.entrada')
+                            ->whereNull('a.salida');
+                    });
+            })
             ->select(
                 'p.id',
                 'p.ci',
@@ -39,6 +45,7 @@ class DashboardController extends Controller
                 'p.materno',
                 'o.nombre as oficina'
             )
+            ->distinct()
             ->orderBy('p.paterno', 'asc')
             ->orderBy('p.materno', 'asc')
             ->orderBy('p.nombre', 'asc')

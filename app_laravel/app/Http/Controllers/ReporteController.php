@@ -85,7 +85,7 @@ class ReporteController extends Controller
             'tipo_personal_id' => ['nullable', 'integer'],
             'empleado_id' => ['nullable', 'integer'],
             'estado' => ['nullable', 'in:presente,tardanza,ausente'],
-            'tipo_reporte' => ['nullable', 'in:asistencia_general,tardanza_general,tardanza_individual'],
+            'tipo_reporte' => ['nullable', 'in:asistencia_general,tardanza_general,tardanza_individual,faltantes_general'],
         ]);
 
         $periodo = $validated['periodo'] ?? 'mes';
@@ -129,6 +129,10 @@ class ReporteController extends Controller
 
     private function obtenerDatosReporte(array $filtros, bool $esPdf): array
     {
+        if ($filtros['tipo_reporte'] === 'faltantes_general') {
+            return $this->obtenerDatosFaltantes($filtros);
+        }
+
         $consultaBase = $this->armarConsultaBase($filtros);
 
         $totales = (clone $consultaBase)
@@ -195,6 +199,92 @@ class ReporteController extends Controller
             'detalle' => $detalle,
             'rankingTardanzas' => $rankingTardanzas,
             'sinEmpleadoEnIndividual' => $sinEmpleadoEnIndividual,
+        ];
+    }
+
+    private function obtenerDatosFaltantes(array $filtros): array
+    {
+        $faltantes = DB::table('personal as p')
+            ->join('asignacion_oficina as ao', function ($join) use ($filtros) {
+                $join->on('ao.personal_id', '=', 'p.id')
+                    ->where('ao.estado', '=', 1)
+                    ->whereDate('ao.fecha_inicio', '<=', $filtros['fecha_fin'])
+                    ->where(function ($q) use ($filtros) {
+                        $q->whereNull('ao.fecha_fin')
+                            ->orWhereDate('ao.fecha_fin', '>=', $filtros['fecha_inicio']);
+                    });
+            })
+            ->join('oficina as o', 'o.id', '=', 'ao.oficina_id')
+            ->join('tipo_personal as tp', 'tp.id', '=', 'ao.tipo_personal_id')
+            ->join('turno as t', 't.id', '=', 'ao.turno_id')
+            ->leftJoin('asistencia as a', function ($join) use ($filtros) {
+                $join->on('a.personal_id', '=', 'p.id')
+                    ->whereBetween('a.fecha', [$filtros['fecha_inicio'], $filtros['fecha_fin']])
+                    ->where(function ($q) {
+                        $q->whereNotNull('a.entrada')
+                            ->orWhereNotNull('a.salida');
+                    });
+            })
+            ->where('p.estado', 1)
+            ->when($filtros['oficina_id'], fn ($q) => $q->where('o.id', $filtros['oficina_id']))
+            ->when($filtros['tipo_personal_id'], fn ($q) => $q->where('tp.id', $filtros['tipo_personal_id']))
+            ->when($filtros['empleado_id'], fn ($q) => $q->where('p.id', $filtros['empleado_id']))
+            ->whereNull('a.id')
+            ->selectRaw('p.id as personal_id')
+            ->selectRaw('p.ci')
+            ->selectRaw("CONCAT(p.paterno, ' ', COALESCE(p.materno,''), ' ', p.nombre) as nombre_completo")
+            ->selectRaw('o.nombre as oficina')
+            ->selectRaw('tp.tipo as tipo_personal')
+            ->selectRaw('t.nombre as turno')
+            ->groupBy('p.id', 'p.ci', 'p.nombre', 'p.paterno', 'p.materno', 'o.nombre', 'tp.tipo', 't.nombre')
+            ->orderBy('o.nombre')
+            ->orderBy('p.paterno')
+            ->orderBy('p.materno')
+            ->get();
+
+        $diasRango = Carbon::parse($filtros['fecha_inicio'])->diffInDays(Carbon::parse($filtros['fecha_fin'])) + 1;
+
+        $resumen = $faltantes->map(function ($f) use ($diasRango) {
+            return (object) [
+                'personal_id' => $f->personal_id,
+                'ci' => $f->ci,
+                'nombre_completo' => $f->nombre_completo,
+                'oficina' => $f->oficina,
+                'tipo_personal' => $f->tipo_personal,
+                'dias_registrados' => 0,
+                'presentes' => 0,
+                'tardanzas' => 0,
+                'ausentes' => $diasRango,
+            ];
+        });
+
+        $detalle = $faltantes->map(function ($f) {
+            return (object) [
+                'fecha' => null,
+                'entrada' => null,
+                'salida' => null,
+                'estado' => 'ausente',
+                'ci' => $f->ci,
+                'nombre_completo' => $f->nombre_completo,
+                'oficina' => $f->oficina,
+                'tipo_personal' => $f->tipo_personal,
+                'turno' => $f->turno,
+            ];
+        });
+
+        $totales = (object) [
+            'total_registros' => $faltantes->count(),
+            'total_presentes' => 0,
+            'total_tardanzas' => 0,
+            'total_ausentes' => $faltantes->count(),
+        ];
+
+        return [
+            'totales' => $totales,
+            'resumen' => $resumen,
+            'detalle' => $detalle,
+            'rankingTardanzas' => collect(),
+            'sinEmpleadoEnIndividual' => false,
         ];
     }
 

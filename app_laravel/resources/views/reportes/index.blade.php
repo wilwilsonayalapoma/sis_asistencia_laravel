@@ -17,6 +17,7 @@
                 <option value="asistencia_general" {{ $filtros['tipo_reporte'] === 'asistencia_general' ? 'selected' : '' }}>Asistencia general</option>
                 <option value="tardanza_general" {{ $filtros['tipo_reporte'] === 'tardanza_general' ? 'selected' : '' }}>Retrasos generales</option>
                 <option value="tardanza_individual" {{ $filtros['tipo_reporte'] === 'tardanza_individual' ? 'selected' : '' }}>Retrasos por empleado</option>
+                <option value="faltantes_general" {{ $filtros['tipo_reporte'] === 'faltantes_general' ? 'selected' : '' }}>Empleados faltantes</option>
             </select>
         </div>
         <div class="col-md-3">
@@ -222,7 +223,7 @@
             <tbody>
             @forelse($detalle as $d)
                 <tr>
-                    <td>{{ \Carbon\Carbon::parse($d->fecha)->format('Y-m-d') }}</td>
+                    <td>{{ $d->fecha ? \Carbon\Carbon::parse($d->fecha)->format('Y-m-d') : '-' }}</td>
                     <td>{{ $d->ci }}</td>
                     <td>{{ $d->nombre_completo }}</td>
                     <td>{{ $d->oficina }}</td>

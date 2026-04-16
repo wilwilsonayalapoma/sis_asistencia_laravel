@@ -196,7 +196,7 @@
             <tbody>
             @forelse($detalle as $d)
                 <tr>
-                    <td>{{ \Carbon\Carbon::parse($d->fecha)->format('Y-m-d') }}</td>
+                    <td>{{ $d->fecha ? \Carbon\Carbon::parse($d->fecha)->format('Y-m-d') : '-' }}</td>
                     <td>{{ $d->ci }}</td>
                     <td>{{ $d->nombre_completo }}</td>
                     <td>{{ $d->oficina }}</td>

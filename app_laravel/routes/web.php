@@ -45,6 +45,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
 	Route::patch('/empleados/{empleado}/estado', [EmpleadoController::class, 'cambiarEstado'])->name('empleados.estado');
 
 	Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+	Route::get('/reportes/pdf', [ReporteController::class, 'pdf'])->name('reportes.pdf');
+	Route::get('/reportes/imprimir', [ReporteController::class, 'imprimir'])->name('reportes.imprimir');
 
 	Route::prefix('/configuraciones')->name('configuraciones.')->group(function () {
 		Route::get('/', [ConfiguracionController::class, 'index'])->name('index');

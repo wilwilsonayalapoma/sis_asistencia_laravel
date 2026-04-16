@@ -24,6 +24,7 @@ class EmpleadoController extends Controller
         $direccion = $ordenListado === 'za' ? 'desc' : 'asc';
 
         $empleados = Personal::query()
+            ->with(['asignacionVigente.oficina', 'asignacionVigente.turno'])
             ->when($busqueda, function ($query) use ($busqueda) {
                 $query->where('ci', 'like', "%{$busqueda}%")
                     ->orWhere('nombre', 'like', "%{$busqueda}%")

@@ -32,6 +32,8 @@
                 <tr>
                     <th>CI</th>
                     <th>Nombre completo</th>
+                    <th>Turno</th>
+                    <th>Horario</th>
                     <th>Correo</th>
                     <th>Celular</th>
                     <th>Estado</th>
@@ -43,6 +45,14 @@
                     <tr>
                         <td>{{ $e->ci }}</td>
                         <td>{{ $e->nombre_completo }}</td>
+                        <td>{{ $e->asignacionVigente->turno->nombre ?? '-' }}</td>
+                        <td>
+                            @if($e->asignacionVigente && $e->asignacionVigente->turno)
+                                {{ substr($e->asignacionVigente->turno->hora_entrada, 0, 5) }} - {{ $e->asignacionVigente->turno->hora_salida ? substr($e->asignacionVigente->turno->hora_salida, 0, 5) : 'Sin salida' }}
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td>{{ $e->correo ?: '-' }}</td>
                         <td>{{ $e->celular ?: '-' }}</td>
                         <td>
@@ -60,7 +70,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-muted py-3">No hay empleados registrados.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-3">No hay empleados registrados.</td></tr>
                 @endforelse
             </tbody>
         </table>

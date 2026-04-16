@@ -28,6 +28,14 @@ class Personal extends Model
         return $this->hasMany(AsignacionOficina::class, 'personal_id');
     }
 
+    public function asignacionVigente()
+    {
+        return $this->hasOne(AsignacionOficina::class, 'personal_id')
+            ->where('estado', 1)
+            ->whereNull('fecha_fin')
+            ->latestOfMany('fecha_inicio');
+    }
+
     public function asistencias()
     {
         return $this->hasMany(Asistencia::class, 'personal_id');

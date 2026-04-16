@@ -158,9 +158,11 @@
                 tardanza = '<p class="mb-0 text-danger fw-semibold">Registrado como tardanza.</p>';
             }
 
+            const mensajeRegistro = data.mensaje ?? 'Registro procesado correctamente.';
+
             resultadoBody.innerHTML = `
                 <p class="mb-2"><strong>${data.nombre_completo}</strong></p>
-                <p class="mb-1">Entrada registrada.</p>
+                <p class="mb-1">${mensajeRegistro}</p>
                 <p class="mb-2">Hora del marcado: <strong>${data.hora_marcado}</strong></p>
                 ${tardanza}
             `;

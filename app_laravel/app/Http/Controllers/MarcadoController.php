@@ -33,8 +33,14 @@ class MarcadoController extends Controller
             ], 422);
         }
 
-        $hoy = Carbon::today()->toDateString();
+        $momento = now();
+        $hoy = $momento->toDateString();
         $asignacion = $this->obtenerAsignacionVigente($personal->id, $hoy);
+
+        if (!$asignacion) {
+            $ayer = $momento->copy()->subDay()->toDateString();
+            $asignacion = $this->obtenerAsignacionVigente($personal->id, $ayer);
+        }
 
         if (!$asignacion) {
             return response()->json([
@@ -43,7 +49,8 @@ class MarcadoController extends Controller
             ], 422);
         }
 
-        $resultado = $this->registrarEntrada($personal, $asignacion, $hoy);
+        $fechaLaboral = $this->obtenerFechaLaboral($momento, $asignacion);
+        $resultado = $this->registrarAutomatico($personal, $asignacion, $fechaLaboral, $momento);
 
         return response()->json($resultado, $resultado['ok'] ? 200 : 422);
     }
@@ -127,6 +134,7 @@ class MarcadoController extends Controller
     private function obtenerAsignacionVigente(int $personalId, string $hoy): ?AsignacionOficina
     {
         return AsignacionOficina::where('personal_id', $personalId)
+            ->with('turno')
             ->where('estado', 1)
             ->whereDate('fecha_inicio', '<=', $hoy)
             ->where(function ($query) use ($hoy) {
@@ -137,8 +145,95 @@ class MarcadoController extends Controller
             ->first();
     }
 
-    private function registrarEntrada(Personal $personal, AsignacionOficina $asignacion, string $hoy): array
+    private function obtenerFechaLaboral(Carbon $momento, AsignacionOficina $asignacion): string
     {
+        $turno = $asignacion->turno;
+
+        if (!$turno || !$turno->hora_entrada || !$turno->hora_salida) {
+            return $momento->toDateString();
+        }
+
+        $horaActual = $momento->format('H:i:s');
+        $horaEntradaTurno = Carbon::parse($turno->hora_entrada)->format('H:i:s');
+        $horaSalidaTurno = Carbon::parse($turno->hora_salida)->format('H:i:s');
+        $esTurnoNocturno = $horaSalidaTurno < $horaEntradaTurno;
+
+        if ($esTurnoNocturno && $horaActual <= $horaSalidaTurno) {
+            return $momento->copy()->subDay()->toDateString();
+        }
+
+        return $momento->toDateString();
+    }
+
+    private function registrarAutomatico(Personal $personal, AsignacionOficina $asignacion, string $fechaLaboral, Carbon $momento): array
+    {
+        $asistencia = Asistencia::where('personal_id', $personal->id)
+            ->whereDate('fecha', $fechaLaboral)
+            ->first();
+
+        if (!$asistencia) {
+            return $this->registrarEntrada($personal, $asignacion, $fechaLaboral, $momento);
+        }
+
+        if ($asistencia->salida === null) {
+            if (!$this->correspondeRegistrarSalida($momento, $asignacion, $fechaLaboral)) {
+                return [
+                    'ok' => false,
+                    'tipo_registro' => 'entrada',
+                    'mensaje' => 'Usuario ya registro su entrada del dia de hoy.',
+                    'nombre_completo' => $personal->nombre_completo,
+                    'hora_marcado' => Carbon::parse($asistencia->entrada)->format('H:i:s'),
+                    'estado' => $asistencia->estado,
+                    'es_tardanza' => $asistencia->estado === 'tardanza',
+                ];
+            }
+
+            $asistencia->salida = $momento;
+            $asistencia->save();
+
+            return [
+                'ok' => true,
+                'tipo_registro' => 'salida',
+                'mensaje' => 'Ha registrado su salida correctamente.',
+                'nombre_completo' => $personal->nombre_completo,
+                'hora_marcado' => Carbon::parse($asistencia->salida)->format('H:i:s'),
+                'estado' => $asistencia->estado,
+                'es_tardanza' => $asistencia->estado === 'tardanza',
+            ];
+        }
+
+        return [
+            'ok' => false,
+            'tipo_registro' => 'entrada',
+            'mensaje' => 'Usuario ya registro su entrada y salida para la jornada laboral.',
+            'nombre_completo' => $personal->nombre_completo,
+        ];
+    }
+
+    private function correspondeRegistrarSalida(Carbon $momento, AsignacionOficina $asignacion, string $fechaLaboral): bool
+    {
+        $turno = $asignacion->turno;
+
+        if (!$turno || !$turno->hora_entrada || !$turno->hora_salida) {
+            return true;
+        }
+
+        $horaEntradaTurno = Carbon::parse($turno->hora_entrada)->format('H:i:s');
+        $horaSalidaTurno = Carbon::parse($turno->hora_salida)->format('H:i:s');
+        $esTurnoNocturno = $horaSalidaTurno < $horaEntradaTurno;
+
+        $momentoSalidaProgramada = Carbon::parse($fechaLaboral . ' ' . $horaSalidaTurno);
+        if ($esTurnoNocturno) {
+            $momentoSalidaProgramada->addDay();
+        }
+
+        return $momento->greaterThanOrEqualTo($momentoSalidaProgramada);
+    }
+
+    private function registrarEntrada(Personal $personal, AsignacionOficina $asignacion, string $hoy, ?Carbon $momento = null): array
+    {
+        $momento = $momento ?? now();
+
         $asistencia = Asistencia::firstOrCreate(
             [
                 'personal_id' => $personal->id,
@@ -146,7 +241,7 @@ class MarcadoController extends Controller
             ],
             [
                 'asignacion_oficina_id' => $asignacion->id,
-                'entrada' => now(),
+                'entrada' => $momento,
                 'estado' => 'presente',
             ]
         );
@@ -155,13 +250,14 @@ class MarcadoController extends Controller
             return [
                 'ok' => false,
                 'mensaje' => 'La entrada ya fue registrada para hoy.',
+                'tipo_registro' => 'entrada',
                 'nombre_completo' => $personal->nombre_completo,
             ];
         }
 
         if ($asistencia->entrada === null) {
             $asistencia->asignacion_oficina_id = $asignacion->id;
-            $asistencia->entrada = now();
+            $asistencia->entrada = $momento;
         }
 
         $horaLimite = $asignacion->turno->hora_tardanza;
@@ -171,7 +267,8 @@ class MarcadoController extends Controller
 
         return [
             'ok' => true,
-            'mensaje' => 'Entrada registrada correctamente.',
+            'tipo_registro' => 'entrada',
+            'mensaje' => 'Ha registrado su entrada correctamente.',
             'nombre_completo' => $personal->nombre_completo,
             'hora_marcado' => $horaEntrada,
             'estado' => $asistencia->estado,
